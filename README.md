@@ -1,72 +1,67 @@
-# MangaLokal Web v1.0
+# MangaLokal Web v2.0 — Scroll Translate
 
-Versi Web/PWA dari prototipe MangaLokal Translator. Bisa dipakai dari Android, Windows, Linux, macOS, dan perangkat lain yang memiliki browser modern.
+PWA penerjemah manga/manhwa/manhua yang dapat bekerja dari **gambar lokal** atau dari **URL chapter**. Mode website membuat reader vertikal sendiri, lalu OCR + terjemahan dijalankan bertahap ketika gambar mendekati layar saat pengguna scrolling.
 
-## Fitur
+## Yang baru dari v1
 
-- Multi-image import untuk halaman manga/manhwa/manhua.
-- OCR Jepang (horizontal/vertikal), Korea, Mandarin sederhana/tradisional, dan Inggris dengan Tesseract.js.
-- Terjemahan ke Bahasa Indonesia tanpa API berbayar wajib:
-  - Browser Translator API bila browser mendukungnya (on-device setelah model tersedia).
-  - MyMemory publik sebagai fallback gratis online.
-  - Endpoint LibreTranslate kompatibel yang dapat diatur sendiri.
-- Overlay hasil terjemahan pada area OCR.
-- Editor teks asli dan terjemahan manual.
-- Ekspor halaman aktif menjadi PNG dengan overlay terjemahan.
-- Ekspor hasil teks ke TXT.
-- PWA: bisa dipasang ke layar utama bila disajikan melalui HTTPS/localhost.
-- Service Worker untuk cache shell aplikasi dan resource yang sudah pernah dipakai.
+- Tab **Website / Scroll**.
+- Masukkan URL chapter dan impor gambar dari halaman tersebut ke reader vertikal.
+- `IntersectionObserver` untuk menerjemahkan halaman ketika mendekati viewport.
+- Queue satu-per-satu agar OCR tidak memenuhi RAM HP.
+- Worker OCR dipakai ulang untuk mempercepat halaman berikutnya.
+- Tombol **Terjemahkan area layar** jika auto-scroll dimatikan.
+- Opsi menutup teks asli / hanya menaruh overlay gelap.
+- Opsi proxy untuk situs yang memblokir CORS.
+- Template Cloudflare Worker gratis di `tools/cloudflare-worker.js`.
 
-## Cara menjalankan paling cepat
+## Cara menggunakan mode Website / Scroll
 
-Karena browser memblokir beberapa fitur PWA jika file dibuka langsung memakai `file://`, sajikan folder ini melalui web server.
+1. Jalankan aplikasi dari GitHub Pages/hosting HTTPS.
+2. Buka tab **Website / Scroll**.
+3. Tempel URL halaman chapter.
+4. Tekan **Buka di Reader**.
+5. Jika gambar berhasil ditemukan, scroll seperti membaca webtoon.
+6. Saat gambar mendekati layar, status pada gambar berubah dari `menunggu` → `OCR` → `menerjemahkan` → `selesai`.
+7. Hasil Indonesia ditaruh sebagai overlay di area teks.
 
-### GitHub Pages
+## Kenapa URL tertentu gagal?
 
-1. Buat repository GitHub baru.
-2. Upload seluruh isi folder ini ke root repository.
-3. Buka **Settings → Pages**.
-4. Pada **Build and deployment**, pilih **Deploy from a branch**.
-5. Pilih branch `main`, folder `/ (root)`, lalu Save.
-6. Buka alamat GitHub Pages yang diberikan. Di Chrome Android, gunakan menu **Tambahkan ke layar utama / Instal aplikasi**.
+Browser menerapkan CORS. Sebagian situs tidak mengizinkan JavaScript dari domain lain mengambil HTML atau gambar mereka. Ada juga situs yang membuat daftar gambar sepenuhnya dengan JavaScript sehingga gambar tidak muncul di HTML awal.
 
-### PC lokal
+MangaLokal v2 mencoba akses langsung terlebih dahulu. Jika browser menolak, gunakan `Proxy URL`.
 
-Jika Python tersedia:
+## Proxy Cloudflare Worker (opsional)
 
-```bash
-python -m http.server 8080
+1. Buat Worker baru di Cloudflare.
+2. Salin isi `tools/cloudflare-worker.js`.
+3. Ubah `ALLOWED_HOSTS` menjadi domain website dan CDN gambarnya, misalnya:
+
+```js
+const ALLOWED_HOSTS = [
+  'domain-komik.example',
+  'img.domain-komik.example'
+];
 ```
 
-Buka `http://localhost:8080`.
+4. Deploy Worker.
+5. Salin URL Worker, contoh:
 
-## Android tanpa Android Studio
+```text
+https://mangalokal-proxy.nama-kamu.workers.dev/?url=
+```
 
-Setelah aplikasi ditempatkan di GitHub Pages/hosting HTTPS:
+6. Masukkan URL itu di **Pengaturan website lanjutan → Proxy URL**.
 
-1. Buka alamatnya menggunakan Chrome Android.
-2. Tekan tombol **Pasang Aplikasi** jika muncul, atau menu Chrome → **Tambahkan ke layar utama**.
-3. MangaLokal akan tampil seperti aplikasi tersendiri.
+Template sengaja memakai allowlist host agar Worker tidak berubah menjadi open proxy yang bisa dipakai orang lain sesuka hati. Internet sudah cukup kacau tanpa menyumbang satu proxy publik lagi.
 
-## Catatan OCR
+## Catatan penting
 
-Tesseract.js dan model OCR bahasa diunduh dari internet pada pemakaian pertama. Service worker mencoba menyimpan resource yang telah dipakai agar pemakaian berikutnya lebih ringan. OCR Jepang vertikal dapat dipilih melalui opsi **Jepang vertikal**.
+- Reader URL memproses halaman di dalam MangaLokal, bukan menulis ke situs asli.
+- Gunakan pada konten yang kamu berhak akses dan sesuai ketentuan situs asal.
+- Situs dengan anti-bot, login kompleks, DRM, atau gambar yang dirakit lewat JavaScript khusus mungkin tidak bisa diimpor oleh PWA biasa.
+- Chrome/PWA tidak diizinkan mengubah konten tab website lain secara langsung. Karena itu v2 memakai reader internal.
+- Mode terjemahan tetap tidak mewajibkan API berbayar: Browser Translator bila tersedia, MyMemory publik, atau LibreTranslate kompatibel.
 
-## Catatan terjemahan
+## Upgrade dari v1 di GitHub Pages
 
-- Mode **Browser** paling privat karena teks dapat diproses melalui model bawaan browser bila Translator API tersedia. Dukungan bergantung versi/perangkat browser.
-- Mode **MyMemory** tidak membutuhkan API key, tetapi memakai layanan publik dan memiliki batas penggunaan. Teks OCR dikirim ke layanan tersebut.
-- Mode **LibreTranslate** membutuhkan endpoint yang mengizinkan request dari browser (CORS). Beberapa server publik mungkin meminta API key atau membatasi penggunaan.
-
-## Struktur
-
-- `index.html` — antarmuka aplikasi.
-- `styles.css` — tampilan responsif.
-- `app.js` — OCR, translation, overlay, editor, export.
-- `sw.js` — service worker/cache.
-- `manifest.webmanifest` — metadata instalasi PWA.
-- `icons/` — ikon PWA.
-
-## Batasan v1.0
-
-Deteksi bubble khusus manga dan inpainting latar belum menggunakan model vision khusus. Overlay menggunakan bounding box OCR, sehingga halaman dengan teks dekoratif/vertikal kompleks mungkin perlu koreksi manual.
+Ganti file lama dengan isi folder v2 ini. Pastikan `index.html`, `app.js`, `styles.css`, `sw.js`, `manifest.webmanifest`, dan folder `icons/` ada di root repository. Setelah commit selesai, buka ulang situs lalu refresh. Jika tampilan lama masih tersimpan, tutup PWA dan buka kembali setelah beberapa detik karena service worker perlu memperbarui cache.

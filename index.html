@@ -4,12 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#645ee8" />
-  <meta name="description" content="Penerjemah manga/manhwa/manhua berbasis web dengan OCR dan terjemahan gratis." />
+  <meta name="description" content="Penerjemah manga/manhwa/manhua berbasis web: gambar dan pembaca URL dengan OCR + terjemahan saat scrolling." />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icons/icon-192.png" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="./styles.css" />
-  <title>MangaLokal Web</title>
+  <title>MangaLokal Web v2</title>
 </head>
 <body>
   <header class="topbar">
@@ -17,21 +17,57 @@
       <img src="./icons/icon-192.png" alt="" class="brand-icon" />
       <div>
         <h1>MangaLokal Web</h1>
-        <p>OCR + terjemahan manga ke Bahasa Indonesia</p>
+        <p>Gambar + Web Reader + terjemahan saat scroll</p>
       </div>
     </div>
     <button id="installBtn" class="ghost hidden" type="button">Pasang Aplikasi</button>
   </header>
 
-  <main class="layout">
-    <section class="panel controls">
-      <h2>1. Pilih gambar</h2>
-      <label class="dropzone" id="dropzone">
-        <input id="imageInput" type="file" accept="image/*" multiple />
-        <span class="drop-title">Pilih / jatuhkan halaman manga</span>
-        <span class="drop-sub">JPG, PNG, WEBP • bisa beberapa halaman sekaligus</span>
-      </label>
+  <nav class="mode-tabs" aria-label="Mode aplikasi">
+    <button class="mode-tab active" data-mode="files" type="button">📁 Gambar</button>
+    <button class="mode-tab" data-mode="web" type="button">🌐 Website / Scroll</button>
+  </nav>
 
+  <main class="layout">
+    <aside class="panel controls">
+      <section id="fileControls">
+        <h2>1. Pilih gambar</h2>
+        <label class="dropzone" id="dropzone">
+          <input id="imageInput" type="file" accept="image/*" multiple />
+          <span class="drop-title">Pilih / jatuhkan halaman komik</span>
+          <span class="drop-sub">JPG, PNG, WEBP • bisa beberapa halaman</span>
+        </label>
+        <div class="actions">
+          <button id="translateBtn" class="primary" type="button" disabled>OCR + Terjemahkan</button>
+          <button id="cancelBtn" class="ghost" type="button" disabled>Batal</button>
+        </div>
+      </section>
+
+      <section id="webControls" class="hidden">
+        <h2>1. Buka chapter dari website</h2>
+        <label>
+          URL halaman/chapter
+          <input id="chapterUrl" type="url" inputmode="url" placeholder="https://contoh.com/chapter-1" spellcheck="false" />
+        </label>
+        <div class="actions compact-actions">
+          <button id="openChapterBtn" class="primary" type="button">Buka di Reader</button>
+          <button id="clearChapterBtn" class="ghost" type="button">Bersihkan</button>
+        </div>
+        <label class="switch-row">
+          <input id="autoScrollToggle" type="checkbox" checked />
+          <span><strong>Terjemahkan otomatis saat scrolling</strong><small>Halaman diproses saat mendekati layar supaya HP tidak dipaksa bekerja seperti server.</small></span>
+        </label>
+        <label class="switch-row">
+          <input id="hideOriginalToggle" type="checkbox" checked />
+          <span><strong>Tutup teks asli dengan overlay</strong><small>Overlay putih ditempatkan pada area teks yang dideteksi OCR.</small></span>
+        </label>
+        <div class="web-note">
+          <strong>Catatan browser:</strong> beberapa situs memblokir pengambilan halaman/gambar dari aplikasi lain. Jika itu terjadi, isi Proxy URL gratis di Pengaturan lanjutan.
+        </div>
+      </section>
+
+      <hr class="separator" />
+      <h2>2. OCR & terjemahan</h2>
       <div class="grid2">
         <label>
           Bahasa sumber
@@ -65,68 +101,87 @@
         </label>
       </div>
 
-      <div class="actions">
-        <button id="translateBtn" class="primary" type="button" disabled>OCR + Terjemahkan</button>
-        <button id="cancelBtn" class="ghost" type="button" disabled>Batal</button>
-      </div>
+      <details class="advanced">
+        <summary>Pengaturan website lanjutan</summary>
+        <div class="subpanel">
+          <label>
+            Proxy URL (opsional)
+            <input id="proxyUrl" type="url" placeholder="https://worker-kamu.workers.dev/?url=" spellcheck="false" />
+            <small>Format: alamat proxy diakhiri <code>?url=</code>. Template Cloudflare Worker gratis ada di folder <code>tools/</code>.</small>
+          </label>
+          <label>
+            Jarak pra-proses saat scroll
+            <select id="scrollPrefetch">
+              <option value="600">600 px</option>
+              <option value="1200" selected>1200 px</option>
+              <option value="2000">2000 px</option>
+            </select>
+          </label>
+        </div>
+      </details>
 
       <div class="progress-wrap" aria-live="polite">
         <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
-        <p id="statusText">Belum ada gambar.</p>
+        <p id="statusText">Siap.</p>
       </div>
 
       <details class="privacy">
         <summary>Privasi & cara kerja</summary>
-        <p>OCR berjalan di browser melalui Tesseract.js. Mode Browser memakai Translator API bawaan browser jika tersedia. Mode MyMemory/LibreTranslate mengirim teks hasil OCR, bukan gambar, ke layanan terjemahan yang dipilih.</p>
+        <p>OCR berjalan di browser melalui Tesseract.js. Mode Browser memakai Translator API bawaan browser jika tersedia. MyMemory/LibreTranslate hanya menerima teks hasil OCR, bukan gambar. Mode website mengambil halaman dan gambar melalui browser atau proxy yang kamu atur.</p>
       </details>
+    </aside>
+
+    <section id="fileWorkspace" class="workspace">
+      <section class="panel viewer-panel">
+        <div class="viewer-head">
+          <div><h2>Pratinjau gambar</h2><p id="pageCounter">0 halaman</p></div>
+          <div class="pager">
+            <button id="prevBtn" class="icon-btn" type="button" disabled aria-label="Halaman sebelumnya">‹</button>
+            <button id="nextBtn" class="icon-btn" type="button" disabled aria-label="Halaman berikutnya">›</button>
+          </div>
+        </div>
+        <div id="emptyState" class="empty-state">
+          <div class="empty-glyph">文</div><strong>Masukkan halaman komik</strong>
+          <span>Hasil terjemahan akan muncul sebagai overlay pada gambar.</span>
+        </div>
+        <div id="viewer" class="viewer hidden">
+          <div id="canvasWrap" class="canvas-wrap">
+            <img id="pageImage" alt="Halaman komik" />
+            <div id="overlayLayer" class="overlay-layer"></div>
+          </div>
+        </div>
+        <div class="viewer-actions">
+          <button id="toggleOverlayBtn" class="ghost" type="button" disabled>Matikan overlay</button>
+          <button id="exportPngBtn" class="ghost" type="button" disabled>Ekspor PNG</button>
+          <button id="exportTxtBtn" class="ghost" type="button" disabled>Ekspor TXT</button>
+        </div>
+      </section>
+
+      <section class="panel transcript-panel">
+        <div class="transcript-head"><div><h2>Teks terdeteksi</h2><p>Koreksi OCR jika diperlukan.</p></div></div>
+        <div id="transcript" class="transcript empty-transcript">Belum ada hasil OCR.</div>
+      </section>
     </section>
 
-    <section class="panel viewer-panel">
-      <div class="viewer-head">
-        <div>
-          <h2>2. Pratinjau</h2>
-          <p id="pageCounter">0 halaman</p>
+    <section id="webWorkspace" class="workspace hidden">
+      <section class="panel reader-panel">
+        <div class="reader-head">
+          <div><h2>Web Reader</h2><p id="readerMeta">Masukkan URL chapter di sebelah kiri.</p></div>
+          <div class="reader-actions">
+            <button id="processVisibleBtn" class="ghost" type="button" disabled>Terjemahkan area layar</button>
+            <a id="openOriginalLink" class="ghost link-button hidden" target="_blank" rel="noopener noreferrer">Buka situs asli</a>
+          </div>
         </div>
-        <div class="pager">
-          <button id="prevBtn" class="icon-btn" type="button" disabled aria-label="Halaman sebelumnya">‹</button>
-          <button id="nextBtn" class="icon-btn" type="button" disabled aria-label="Halaman berikutnya">›</button>
+        <div id="webEmptyState" class="empty-state web-empty">
+          <div class="empty-glyph">漫</div><strong>Reader siap</strong>
+          <span>Masukkan URL chapter. Gambar akan disusun vertikal dan diterjemahkan ketika kamu scroll.</span>
         </div>
-      </div>
-
-      <div id="emptyState" class="empty-state">
-        <div class="empty-glyph">文</div>
-        <strong>Masukkan halaman manga</strong>
-        <span>Hasil terjemahan akan muncul sebagai overlay pada gambar.</span>
-      </div>
-
-      <div id="viewer" class="viewer hidden">
-        <div id="canvasWrap" class="canvas-wrap">
-          <img id="pageImage" alt="Halaman manga" />
-          <div id="overlayLayer" class="overlay-layer"></div>
-        </div>
-      </div>
-
-      <div class="viewer-actions">
-        <button id="toggleOverlayBtn" class="ghost" type="button" disabled>Matikan overlay</button>
-        <button id="exportPngBtn" class="ghost" type="button" disabled>Ekspor PNG</button>
-        <button id="exportTxtBtn" class="ghost" type="button" disabled>Ekspor TXT</button>
-      </div>
-    </section>
-
-    <section class="panel transcript-panel">
-      <div class="transcript-head">
-        <div>
-          <h2>3. Teks terdeteksi</h2>
-          <p>Koreksi hasil jika OCR salah. Karena bahkan mesin pun kadang membaca huruf seperti resep dokter.</p>
-        </div>
-      </div>
-      <div id="transcript" class="transcript empty-transcript">Belum ada hasil OCR.</div>
+        <div id="webReader" class="web-reader hidden" aria-live="polite"></div>
+      </section>
     </section>
   </main>
 
-  <footer>
-    <span>MangaLokal Web v1.0 • Tidak memakai API berbayar wajib.</span>
-  </footer>
+  <footer>MangaLokal Web v2.0 • Web/Scroll Translate • Tidak mewajibkan API berbayar.</footer>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" crossorigin="anonymous"></script>
   <script src="./app.js" defer></script>
